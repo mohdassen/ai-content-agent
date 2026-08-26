@@ -2,6 +2,14 @@ name: Produce First Reel
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'produce.py'
+      - 'src/**'
+      - 'data/seeds/**'
+      - 'requirements.txt'
+      - '.github/workflows/produce.yml'
 
 permissions:
   contents: read
