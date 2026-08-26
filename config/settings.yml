@@ -1,0 +1,33 @@
+brand:
+  name_ar: "خلف الرقم"
+  name_en: "Behind The Number"
+  language: "ar"
+  market: "SA"
+
+content:
+  target_duration_seconds: 45
+  min_viral_score: 7.5
+  pillars:
+    business_money: 30
+    success_failure: 25
+    ai_technology: 20
+    saudi_gulf: 15
+    facts: 10
+
+quality:
+  require_sources: true
+  min_sources: 2
+  reject_unverified_numeric_claims: true
+  reject_duplicate_topics: true
+
+publishing:
+  enabled: false
+  require_approval: true
+  disclose_ai_content: true
+  platforms:
+    - youtube_shorts
+    - instagram_reels
+    - tiktok
+
+telegram:
+  enabled: false
