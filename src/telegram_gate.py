@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import subprocess
 from typing import Dict, Optional
 
 import requests
@@ -19,6 +20,8 @@ class TelegramApprovalGate:
     and the pipeline continues without publishing.
     """
 
+    TELEGRAM_SAFE_BYTES = 45 * 1024 * 1024
+
     def __init__(self, token: Optional[str] = None, chat_id: Optional[str] = None) -> None:
         self.token = token or os.getenv("TELEGRAM_BOT_TOKEN")
         self.chat_id = chat_id or os.getenv("TELEGRAM_CHAT_ID")
@@ -26,6 +29,24 @@ class TelegramApprovalGate:
     @property
     def configured(self) -> bool:
         return bool(self.token and self.chat_id)
+
+    def _telegram_preview(self, video_path: Path, output_dir: Path) -> Path:
+        """Keep the publishing master untouched; compress only the Telegram preview if needed."""
+        if video_path.stat().st_size <= self.TELEGRAM_SAFE_BYTES:
+            return video_path
+
+        preview = output_dir / "telegram_preview.mp4"
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-i", str(video_path),
+                "-vf", "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+                "-c:a", "aac", "-b:a", "96k",
+                "-movflags", "+faststart", str(preview),
+            ],
+            check=True,
+        )
+        return preview
 
     def request_approval(self, story: Dict, video_path: Path, output_dir: str = "data/output") -> Dict:
         payload = {
@@ -61,8 +82,9 @@ class TelegramApprovalGate:
             "Publishing is blocked until approval."
         )
 
+        preview_path = self._telegram_preview(video_path, out)
         api = f"https://api.telegram.org/bot{self.token}"
-        with video_path.open("rb") as video_file:
+        with preview_path.open("rb") as video_file:
             response = requests.post(
                 f"{api}/sendVideo",
                 data={
@@ -72,10 +94,11 @@ class TelegramApprovalGate:
                     "supports_streaming": "true",
                 },
                 files={"video": video_file},
-                timeout=120,
+                timeout=180,
             )
         response.raise_for_status()
         payload["delivery"] = "telegram"
+        payload["telegram_preview"] = str(preview_path)
         payload["telegram_message"] = response.json().get("result", {}).get("message_id")
         approval_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return payload
