@@ -5,9 +5,8 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-import requests
-
 from src.publishing import assert_publish_allowed
+from src.tiktok_upload import direct_post_file
 from src.youtube_upload import upload_resumable
 
 
@@ -54,9 +53,6 @@ def publish_youtube(video: Path, story: Dict, dry_run: bool = True) -> Dict:
             "YouTube uploader is configured but locked. Set YOUTUBE_LIVE_UPLOAD=true explicitly."
         )
 
-    # Private is intentionally hard-coded for the first production phase.
-    # Google restricts uploads from unverified API projects to private anyway,
-    # and we do not want an accidental public post during onboarding.
     result = upload_resumable(video, story, privacy_status="private")
     result["containsSyntheticMedia"] = meta["ai_disclosure"]
     return result
@@ -95,18 +91,16 @@ def publish_tiktok(video: Path, story: Dict, dry_run: bool = True) -> Dict:
             "is_aigc": meta["ai_disclosure"],
         }
 
+    if os.getenv("TIKTOK_LIVE_UPLOAD", "false").lower() != "true":
+        raise PlatformConfigurationError(
+            "TikTok uploader is configured but locked. Set TIKTOK_LIVE_UPLOAD=true explicitly."
+        )
+
     access_token = os.getenv("TIKTOK_ACCESS_TOKEN")
     if not access_token:
         raise PlatformConfigurationError("TIKTOK_ACCESS_TOKEN is missing")
 
-    creator = requests.post(
-        "https://open.tiktokapis.com/v2/post/publish/creator_info/query/",
-        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json; charset=UTF-8"},
-        timeout=30,
-    )
-    creator.raise_for_status()
-
-    raise PlatformConfigurationError("TikTok live publishing is disabled until video.publish approval/audit is complete")
+    return direct_post_file(video, story, access_token)
 
 
 def write_publish_plan(results: List[Dict], output_dir: str = "data/output") -> Path:
