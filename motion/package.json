@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts BehindTheNumber out/behind-the-number-motion.mp4 --codec=h264 --crf=18"
+    "studio": "remotion studio src/index.ts --public-dir=public",
+    "render": "remotion render src/index.ts BehindTheNumber out/behind-the-number-motion.mp4 --codec=h264 --crf=18 --public-dir=public"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.0",
