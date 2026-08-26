@@ -14,6 +14,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 jobs:
   produce:
     runs-on: ubuntu-latest
@@ -31,6 +34,8 @@ jobs:
       - name: Run tests
         run: pytest -q
       - name: Produce narrated reel
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python produce.py
       - name: Upload reel package
         uses: actions/upload-artifact@v4
