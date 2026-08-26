@@ -1,0 +1,35 @@
+{
+  "topic_id": "saudi-ai-datacenters-2026",
+  "title_ar": "لماذا تتحول مراكز البيانات في السعودية إلى مصانع للذكاء الاصطناعي؟",
+  "pillar": "ai_technology",
+  "market": "SA",
+  "facts": [
+    {
+      "claim": "استثمارات قطاع مراكز البيانات في المملكة تجاوزت 16 مليار ريال منذ 2016.",
+      "source_title": "AI factories will power Saudi Arabia’s next phase of digital transformation, NVIDIA says",
+      "source_url": "https://www.arabnews.com/node/2653858/amp",
+      "published": "2026-08-08"
+    },
+    {
+      "claim": "السعودية متوقع أن تستقطب الحصة الأكبر من استثمارات مراكز بيانات الذكاء الاصطناعي في الشرق الأوسط.",
+      "source_title": "Saudi Arabia leads AI race",
+      "source_url": "https://www.arabnews.com/node/2651715/business-economy",
+      "published": "2026-07-21"
+    },
+    {
+      "claim": "قدرة مراكز البيانات ارتفعت من 68 ميغاواط في 2021 إلى 467 ميغاواط في الربع الأول من 2026.",
+      "source_title": "Saudi Arabia ranks among world’s top 10 for private AI investment: World Bank",
+      "source_url": "https://www.arabnews.com/node/2654479/business-economy",
+      "published": "2026-08-13"
+    }
+  ],
+  "signals": {
+    "curiosity": 8.6,
+    "emotion": 6.8,
+    "shareability": 8.2,
+    "freshness": 9.5,
+    "monetization": 9.0,
+    "market_relevance": 10.0,
+    "competition": 5.0
+  }
+}
