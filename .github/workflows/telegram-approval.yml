@@ -1,0 +1,78 @@
+name: Telegram Approval Gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  approval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Poll Telegram decision
+        id: poll
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          RESULT="$(python poll_telegram.py)"
+          echo "$RESULT"
+          echo "decision=$(echo "$RESULT" | jq -r '.decision')" >> "$GITHUB_OUTPUT"
+          echo "changed=$(echo "$RESULT" | jq -r '.changed')" >> "$GITHUB_OUTPUT"
+
+      - name: Persist Telegram state
+        if: steps.poll.outputs.changed == 'true'
+        run: |
+          git config user.name "ai-content-agent"
+          git config user.email "ai-content-agent@users.noreply.github.com"
+          git add data/state/
+          git commit -m "Record Telegram content decision" || exit 0
+          git push
+
+      - name: Find latest successful reel run
+        if: steps.poll.outputs.changed == 'true' && steps.poll.outputs.decision == 'approved'
+        id: reel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh run list --workflow="Produce First Reel" --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download approved reel package
+        if: steps.poll.outputs.changed == 'true' && steps.poll.outputs.decision == 'approved'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data/output
+          gh run download "${{ steps.reel.outputs.run_id }}" -n behind-the-number-first-reel -D data/output
+
+      - name: Build platform publish plan
+        if: steps.poll.outputs.changed == 'true' && steps.poll.outputs.decision == 'approved'
+        run: python publish_latest.py
+
+      - name: Upload publish plan
+        if: steps.poll.outputs.changed == 'true' && steps.poll.outputs.decision == 'approved'
+        uses: actions/upload-artifact@v4
+        with:
+          name: approved-publish-plan
+          path: data/output/publish_plan.json
+          retention-days: 14
