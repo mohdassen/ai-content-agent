@@ -12,19 +12,17 @@ class Scene:
 
 
 def saudi_ai_datacenter_story() -> dict:
-    # Short, punchy sentences on purpose. Final timings are recalculated from the
-    # generated audio so narration is never clipped.
-    hook = "تخيل أن استهلاك الذكاء الاصطناعي يبدأ هنا... داخل مبانٍ مليئة بآلاف الخوادم."
+    # Creative Engine V2: short spoken beats, immediate hook, one idea per scene.
+    hook = "السعودية رفعت قدرة مراكز البيانات من 68 إلى 467 ميغاواط. لماذا هذا الرقم مهم؟"
     scenes: List[Scene] = [
-        Scene(0, 4, hook, "data center server racks lights", "الـAI يبدأ هنا"),
-        Scene(4, 8, "في السعودية، قدرة مراكز البيانات قفزت من 68 إلى 467 ميغاواط خلال نحو خمس سنوات.", "Riyadh skyline night technology", "68 → 467 MW"),
-        Scene(8, 12, "لكن الرقم ليس القصة. التحول الحقيقي هو أن مركز البيانات لم يعد مجرد مكان لتخزين الملفات.", "modern data center corridor servers", "ليس مجرد تخزين"),
-        Scene(12, 16, "مع الذكاء الاصطناعي، هذه المراكز تتحول إلى مصانع حوسبة تعمل ليل نهار.", "GPU servers artificial intelligence data center", "AI Factory"),
-        Scene(16, 20, "وهذا يعني طلباً هائلاً على الرقائق، الكهرباء، التبريد، والألياف الضوئية.", "computer chips power grid fiber optic", "رقائق + طاقة + شبكات"),
-        Scene(20, 24, "ومنذ 2016، تجاوزت استثمارات مراكز البيانات في المملكة 16 مليار ريال بحسب بيانات منشورة في 2026.", "Saudi business investment technology city", "+16 مليار ريال"),
-        Scene(24, 28, "والسباق لم يعد على التطبيقات فقط... بل على من يملك البنية التحتية التي تشغل الذكاء نفسه.", "hyperscale data center aerial technology", "من يملك الحوسبة؟"),
-        Scene(28, 32, "إذا استمر هذا النمو، قد تصبح السعودية واحدة من أهم عقد الحوسبة والذكاء الاصطناعي في المنطقة.", "Riyadh futuristic skyline realistic", "Saudi AI Hub?"),
-        Scene(32, 36, "السؤال: بعد خمس سنوات، هل ستكون قوة الدول في النفط فقط... أم في الحوسبة أيضاً؟", "Saudi Arabia city night digital infrastructure", "النفط أم الحوسبة؟"),
+        Scene(0, 4, hook, "Saudi Arabia modern data center server racks", "68 → 467 MW"),
+        Scene(4, 8, "لأن الذكاء الاصطناعي لا يعيش في التطبيق فقط. خلفه آلاف الخوادم تعمل بلا توقف.", "AI GPU data center servers", "الـAI يحتاج حوسبة"),
+        Scene(8, 12, "ومركز البيانات يتحول من مخزن للملفات إلى مصنع حوسبة للذكاء الاصطناعي.", "hyperscale GPU server data center", "AI FACTORY"),
+        Scene(12, 16, "وهذا يرفع الطلب على الرقائق والكهرباء والتبريد والألياف الضوئية.", "semiconductor chips power cooling fiber optic", "رقائق • طاقة • تبريد"),
+        Scene(16, 20, "ومنذ 2016 تجاوزت استثمارات مراكز البيانات في المملكة 16 مليار ريال.", "Saudi Riyadh technology investment skyline", "+16 مليار ريال"),
+        Scene(20, 24, "لذلك السباق القادم ليس على التطبيقات فقط، بل على من يملك قدرة الحوسبة التي تشغلها.", "hyperscale data center infrastructure computing", "من يملك الحوسبة؟"),
+        Scene(24, 29, "إذا استمر النمو، قد تصبح السعودية عقدة رئيسية للحوسبة والذكاء الاصطناعي في المنطقة.", "Riyadh futuristic technology skyline realistic", "SAUDI AI HUB?"),
+        Scene(29, 34, "فهل تصبح الحوسبة أصلاً استراتيجياً مثل الطاقة؟", "Saudi Arabia digital infrastructure night", "الطاقة + الحوسبة"),
     ]
     return {
         "title": "القصة خلف سباق مراكز البيانات والذكاء الاصطناعي في السعودية",
