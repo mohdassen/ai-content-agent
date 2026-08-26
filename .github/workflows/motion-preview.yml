@@ -2,39 +2,80 @@ name: Motion Design Preview
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_telegram:
+        description: 'Render and QA without Telegram delivery'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
       - 'motion/**'
+      - 'prepare_motion.py'
+      - 'qa_motion.py'
+      - 'send_motion_preview.py'
+      - 'src/story.py'
+      - 'src/telegram_gate.py'
+      - 'requirements.txt'
       - '.github/workflows/motion-preview.yml'
 
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 jobs:
   render:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: motion
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: motion/package.json
-      - name: Install Arabic fonts
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y fonts-noto-core fonts-noto-extra
-      - name: Install dependencies
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-extra
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Prepare synchronized narration
+        run: python prepare_motion.py
+
+      - name: Install Remotion dependencies
+        working-directory: motion
         run: npm install
-      - name: Render motion preview
+
+      - name: Render professional motion reel
+        working-directory: motion
         run: npm run render
-      - name: Upload motion preview
+
+      - name: Run motion quality gate
+        run: python qa_motion.py
+
+      - name: Send approved-quality preview to Telegram
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_telegram != true }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python send_motion_preview.py
+
+      - name: Upload motion reel package
         uses: actions/upload-artifact@v4
         with:
-          name: behind-the-number-motion-preview
-          path: motion/out/behind-the-number-motion.mp4
-          retention-days: 7
+          name: behind-the-number-motion-reel
+          path: |
+            motion/out/behind-the-number-motion.mp4
+            motion/public/story.json
+          retention-days: 14
