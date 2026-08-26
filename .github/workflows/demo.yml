@@ -1,4 +1,4 @@
-name: AI Content Agent Demo
+name: AI Content Agent CI
 
 on:
   workflow_dispatch:
@@ -8,13 +8,20 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 jobs:
-  demo:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -r requirements.txt
-      - run: python run.py --demo
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run unit tests
+        run: pytest -q
+      - name: Run safe demo
+        run: python run.py --demo
