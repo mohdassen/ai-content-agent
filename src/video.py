@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import subprocess
 
 
@@ -11,33 +11,57 @@ def _escape_ass_path(path: Path) -> str:
     return str(path).replace('\\', '/').replace(':', '\\:').replace("'", "\\'")
 
 
-def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path: Path, output_dir: str = "data/output") -> Path:
+def compose_vertical_video(
+    story: Dict,
+    audio_files: List[Path],
+    subtitles_path: Path,
+    visual_files: Optional[List[Optional[Path]]] = None,
+    output_dir: str = "data/output",
+) -> Path:
     out = Path(output_dir)
     scenes_dir = out / "scene_video"
     scenes_dir.mkdir(parents=True, exist_ok=True)
     scene_paths: List[Path] = []
+    visual_files = visual_files or [None for _ in story.get("scenes", [])]
 
     for idx, (scene, audio) in enumerate(zip(story["scenes"], audio_files), start=1):
         duration = max(1, int(scene["end"]) - int(scene["start"]))
         scene_path = scenes_dir / f"scene_{idx:02}.mp4"
-        # MVP visual bed: subtle animated test pattern, scaled/cropped for 9:16.
-        # A dedicated AI visual provider can replace this input later without changing the pipeline.
-        vf = (
-            "testsrc2=size=1080x1920:rate=30,"
-            "eq=brightness=-0.45:saturation=0.35,"
-            "drawbox=x=70:y=150:w=940:h=300:color=black@0.45:t=fill"
-        )
-        _run([
-            "ffmpeg", "-y",
-            "-f", "lavfi", "-i", vf,
-            "-i", str(audio),
-            "-t", str(duration),
-            "-vf", "format=yuv420p",
-            "-af", f"apad=pad_dur={duration}",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
-            "-c:a", "aac", "-b:a", "128k",
-            "-shortest", str(scene_path)
-        ])
+        visual = visual_files[idx - 1] if idx - 1 < len(visual_files) else None
+
+        if visual and visual.exists():
+            # Loop/trim a portrait-friendly source, then crop to 9:16 with a slow zoom for movement.
+            vf = (
+                "scale=1080:1920:force_original_aspect_ratio=increase,"
+                "crop=1080:1920,"
+                "zoompan=z='min(zoom+0.0007,1.08)':d=1:s=1080x1920:fps=30,"
+                "format=yuv420p"
+            )
+            _run([
+                "ffmpeg", "-y", "-stream_loop", "-1", "-i", str(visual),
+                "-i", str(audio),
+                "-t", str(duration),
+                "-vf", vf,
+                "-af", f"apad=pad_dur={duration}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k", "-shortest", str(scene_path)
+            ])
+        else:
+            # Free fallback: animated editorial background so the pipeline always produces a usable reel.
+            vf = (
+                "testsrc2=size=1080x1920:rate=30,"
+                "eq=brightness=-0.45:saturation=0.35,"
+                "drawbox=x=70:y=150:w=940:h=300:color=black@0.45:t=fill,"
+                "format=yuv420p"
+            )
+            _run([
+                "ffmpeg", "-y", "-f", "lavfi", "-i", vf,
+                "-i", str(audio),
+                "-t", str(duration),
+                "-af", f"apad=pad_dur={duration}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+                "-c:a", "aac", "-b:a", "128k", "-shortest", str(scene_path)
+            ])
         scene_paths.append(scene_path)
 
     concat_file = out / "concat.txt"
