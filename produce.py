@@ -3,7 +3,7 @@ from src.story import saudi_ai_datacenter_story
 from src.telegram_gate import TelegramApprovalGate
 from src.video import compose_vertical_video
 from src.visuals import fetch_scene_visuals
-from src.voice import synthesize_scene_audio
+from src.voice import synthesize_scene_audio, retime_story_to_audio
 
 
 MIN_REAL_VISUAL_RATIO = 1.0
@@ -11,9 +11,12 @@ MIN_REAL_VISUAL_RATIO = 1.0
 
 def main() -> None:
     story = saudi_ai_datacenter_story()
+
+    # Generate narration first, then build scene/subtitle timing from the real audio.
+    audio_files = synthesize_scene_audio(story)
+    story = retime_story_to_audio(story, audio_files)
     board = write_storyboard(story)
     subtitles = write_srt(story)
-    audio_files = synthesize_scene_audio(story)
     visual_files = fetch_scene_visuals(story)
 
     total_scenes = len(story.get("scenes", []))
@@ -23,16 +26,14 @@ def main() -> None:
     print(f"Storyboard: {board}")
     print(f"Subtitles: {subtitles}")
     print(f"Audio scenes: {len(audio_files)}")
+    print(f"Final duration: {story.get('duration_seconds')} sec")
     print(f"Real stock visuals: {real_visuals}/{total_scenes}")
 
-    # Hard quality gate: never send a synthetic test-pattern/fallback reel for approval.
-    # Every scene must have a real visual before the review video is rendered.
     if visual_ratio < MIN_REAL_VISUAL_RATIO:
         missing = [str(i + 1) for i, item in enumerate(visual_files) if item is None]
         raise RuntimeError(
             "VISUAL_QUALITY_GATE_FAILED: real visuals are required for every scene. "
-            f"Missing scenes: {', '.join(missing)}. "
-            "Configure PEXELS_API_KEY or another approved visual provider before review delivery."
+            f"Missing scenes: {', '.join(missing)}."
         )
 
     video = compose_vertical_video(story, audio_files, subtitles, visual_files=visual_files)
