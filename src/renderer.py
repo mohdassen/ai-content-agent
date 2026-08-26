@@ -17,14 +17,16 @@ def write_srt(story: Dict, output_dir: str = "data/output") -> Path:
     path = folder / "subtitles.srt"
     blocks = []
     for i, scene in enumerate(story["scenes"], start=1):
-        start = _ts(scene["start"])
-        end = _ts(scene["end"])
+        start = _ts(float(scene["start"]))
+        end = _ts(float(scene["end"]))
         blocks.append(f"{i}\n{start} --> {end}\n{scene['narration']}\n")
     path.write_text("\n".join(blocks), encoding="utf-8")
     return path
 
 
-def _ts(seconds: int) -> str:
-    h, rem = divmod(seconds, 3600)
-    m, s = divmod(rem, 60)
-    return f"{h:02}:{m:02}:{s:02},000"
+def _ts(seconds: float) -> str:
+    total_ms = max(0, int(round(seconds * 1000)))
+    h, rem = divmod(total_ms, 3_600_000)
+    m, rem = divmod(rem, 60_000)
+    s, ms = divmod(rem, 1000)
+    return f"{h:02}:{m:02}:{s:02},{ms:03}"
