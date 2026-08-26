@@ -10,17 +10,19 @@ PEXELS_VIDEO_SEARCH = "https://api.pexels.com/videos/search"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 USER_AGENT = "BehindTheNumberAI/1.0 (faceless-content-research)"
 
-# Controlled queries beat long generative prompts on stock libraries.
 QUERY_RULES = [
-    (("data center", "server", "gpu", "computing"), ["server racks data center", "data center servers", "cloud server room"]),
-    (("chip", "semiconductor"), ["microchip semiconductor close up", "computer processor chip"]),
-    (("fiber",), ["fiber optic cables network", "fiber optic data"]),
-    (("power", "cooling"), ["data center cooling infrastructure", "electric power infrastructure"]),
-    (("riyadh", "saudi", "investment"), ["Riyadh skyline Saudi Arabia", "Riyadh business district skyline"]),
+    (("data center", "server", "gpu", "computing"), ["server rack blinking lights", "network server room racks", "data center corridor servers"]),
+    (("chip", "semiconductor"), ["computer processor macro", "circuit board microchip macro"]),
+    (("fiber",), ["fiber optic cable macro", "network cables server rack"]),
+    (("power", "cooling"), ["industrial cooling pipes technology", "electrical substation infrastructure"]),
+    (("riyadh", "saudi", "investment"), ["Riyadh skyline night", "Saudi Arabia Riyadh skyline"]),
 ]
 
-# These terms are strong signals that a result is contextually wrong for this channel.
-BLOCKED_CONTEXT = {"airport", "terminal", "mall", "shopping", "fashion", "travel", "luggage", "hotel", "restaurant", "wedding"}
+BLOCKED_CONTEXT = {
+    "airport", "terminal", "mall", "shopping", "fashion", "travel", "luggage", "hotel",
+    "restaurant", "wedding", "warehouse", "boxes", "package", "packing", "delivery",
+    "retail", "store", "shelf", "library", "books", "office desk"
+}
 
 
 def _queries(scene: Dict) -> List[str]:
@@ -29,16 +31,20 @@ def _queries(scene: Dict) -> List[str]:
     for needles, options in QUERY_RULES:
         if any(n in prompt for n in needles):
             queries.extend(options)
-    return list(dict.fromkeys(queries))[:3] or ["server racks data center", "data center servers"]
+    return list(dict.fromkeys(queries))[:3] or ["server rack blinking lights", "data center corridor servers"]
 
 
-def _best_vertical_file(video: dict) -> Optional[str]:
+def _best_file(video: dict) -> Optional[str]:
+    # Landscape/near-square source footage is intentionally preferred. It is cropped to 9:16
+    # later and tends to be substantially better for technical stock than weak portrait results.
     candidates = []
     for f in video.get("video_files", []):
         width, height, link = f.get("width") or 0, f.get("height") or 0, f.get("link")
-        if not link:
+        if not link or width < 720 or height < 720:
             continue
-        candidates.append((1 if height >= width else 0, width * height, link))
+        pixels = width * height
+        landscape_bonus = 2 if width >= height else 1
+        candidates.append((landscape_bonus, pixels, link))
     if not candidates:
         return None
     candidates.sort(reverse=True)
@@ -65,12 +71,8 @@ def _download(url: str, dest: Path) -> Path:
     return dest
 
 
-def _commons_query(scene: Dict) -> str:
-    return _queries(scene)[0]
-
-
 def _commons_image(scene: Dict, idx: int, out: Path) -> tuple[Optional[Path], Optional[Dict]]:
-    query = _commons_query(scene)
+    query = _queries(scene)[0]
     params = {"action": "query", "generator": "search", "gsrsearch": f"filetype:bitmap {query}", "gsrnamespace": 6, "gsrlimit": 10, "prop": "imageinfo", "iiprop": "url|extmetadata|size", "iiurlwidth": 1600, "format": "json", "origin": "*"}
     response = requests.get(COMMONS_API, params=params, timeout=25, headers={"User-Agent": USER_AGENT})
     response.raise_for_status()
@@ -88,7 +90,7 @@ def _commons_image(scene: Dict, idx: int, out: Path) -> tuple[Optional[Path], Op
         if not thumb or not license_name or any(term in title for term in BLOCKED_CONTEXT):
             continue
         width, height = info.get("thumbwidth") or info.get("width") or 0, info.get("thumbheight") or info.get("height") or 0
-        candidates.append(((1 if height >= width else 0, width * height), page, info, thumb, license_name))
+        candidates.append((width * height, page, info, thumb, license_name))
     if not candidates:
         return None, None
     candidates.sort(key=lambda x: x[0], reverse=True)
@@ -104,19 +106,18 @@ def fetch_scene_visuals(story: Dict, output_dir: str = "data/output") -> List[Op
     attributions: List[Dict] = []
     out = Path(output_dir) / "visuals"
     out.mkdir(parents=True, exist_ok=True)
-
     for idx, scene in enumerate(story.get("scenes", []), start=1):
         selected: Optional[Path] = None
         if key:
             try:
                 urls: List[tuple[str, str]] = []
                 for query in _queries(scene):
-                    response = requests.get(PEXELS_VIDEO_SEARCH, headers={"Authorization": key}, params={"query": query, "orientation": "portrait", "per_page": 15}, timeout=20)
+                    response = requests.get(PEXELS_VIDEO_SEARCH, headers={"Authorization": key}, params={"query": query, "per_page": 25, "size": "large"}, timeout=20)
                     response.raise_for_status()
                     for video in response.json().get("videos", []):
                         if not _acceptable(video):
                             continue
-                        url = _best_vertical_file(video)
+                        url = _best_file(video)
                         if url and all(url != existing[0] for existing in urls):
                             urls.append((url, query))
                         if len(urls) >= 2:
@@ -131,7 +132,6 @@ def fetch_scene_visuals(story: Dict, output_dir: str = "data/output") -> List[Op
                     attributions.append({"scene": idx, "provider": "Pexels", "query": urls[1][1], "role": "alternate", "relevance_gate": "passed"})
             except Exception:
                 selected = None
-
         if selected is None:
             try:
                 selected, attribution = _commons_image(scene, idx, out)
@@ -140,6 +140,5 @@ def fetch_scene_visuals(story: Dict, output_dir: str = "data/output") -> List[Op
             except Exception:
                 selected = None
         result.append(selected)
-
     (Path(output_dir) / "visual_attribution.json").write_text(json.dumps(attributions, ensure_ascii=False, indent=2), encoding="utf-8")
     return result
