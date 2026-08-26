@@ -26,43 +26,26 @@ def _escape_ass_path(path: Path) -> str:
     return str(path).replace('\\', '/').replace(':', '\\:').replace("'", "\\'")
 
 
-def _escape_drawtext(text: str) -> str:
-    return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'").replace("%", "\\%")
-
-
 def _base_vf() -> str:
     return "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,eq=contrast=1.07:saturation=1.04"
 
 
-def _overlay_filter(text: str, duration: float) -> str:
-    safe = _escape_drawtext(text)
-    # Noto Kufi Arabic contains Arabic glyphs as well as Latin/digits, avoiding tofu squares.
-    # Place the headline in the upper safe zone; subtitles live near the bottom.
-    return (
-        f"drawtext=text='{safe}':font='Noto Kufi Arabic':fontsize=62:fontcolor=white:"
-        "borderw=3:bordercolor=black@0.70:box=1:boxcolor=black@0.30:boxborderw=20:"
-        "x=(w-text_w)/2:y=h*0.13:"
-        f"enable='between(t,0,{min(duration, 2.2):.2f})',format=yuv420p"
-    )
-
-
-def _render_single_visual(visual: Path, audio: Path, duration: float, scene_path: Path, text: str) -> None:
+def _render_single_visual(visual: Path, audio: Path, duration: float, scene_path: Path) -> None:
     suffix = visual.suffix.lower()
     if suffix in {".jpg", ".jpeg", ".png", ".webp"}:
-        vf = _base_vf() + ",zoompan=z='min(zoom+0.0022,1.16)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30," + _overlay_filter(text, duration)
+        vf = _base_vf() + ",zoompan=z='min(zoom+0.0022,1.16)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30,format=yuv420p"
         video_input = ["-loop", "1", "-i", str(visual)]
     else:
-        vf = _base_vf() + "," + _overlay_filter(text, duration)
+        vf = _base_vf() + ",format=yuv420p"
         video_input = ["-stream_loop", "-1", "-i", str(visual)]
     _run(["ffmpeg", "-y", *video_input, "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0", "-t", f"{duration:.3f}", "-vf", vf, "-af", f"apad=whole_dur={duration:.3f}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-pix_fmt", "yuv420p", str(scene_path)])
 
 
-def _render_dual_visual(primary: Path, alternate: Path, audio: Path, duration: float, scene_path: Path, text: str) -> None:
+def _render_dual_visual(primary: Path, alternate: Path, audio: Path, duration: float, scene_path: Path) -> None:
     first = min(2.2, max(1.2, duration * 0.45))
     second = max(0.8, duration - first)
     base = _base_vf()
-    overlay = _overlay_filter(text, duration)
-    _run(["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(primary), "-stream_loop", "-1", "-i", str(alternate), "-i", str(audio), "-filter_complex", f"[0:v]{base},trim=duration={first:.3f},setpts=PTS-STARTPTS[v0];[1:v]{base},trim=duration={second:.3f},setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0,{overlay}[v]", "-map", "[v]", "-map", "2:a:0", "-t", f"{duration:.3f}", "-af", f"apad=whole_dur={duration:.3f}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-pix_fmt", "yuv420p", str(scene_path)])
+    _run(["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(primary), "-stream_loop", "-1", "-i", str(alternate), "-i", str(audio), "-filter_complex", f"[0:v]{base},trim=duration={first:.3f},setpts=PTS-STARTPTS[v0];[1:v]{base},trim=duration={second:.3f},setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]", "-map", "[v]", "-map", "2:a:0", "-t", f"{duration:.3f}", "-af", f"apad=whole_dur={duration:.3f}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-pix_fmt", "yuv420p", str(scene_path)])
 
 
 def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path: Path, visual_files: Optional[List[Optional[Path]]] = None, output_dir: str = "data/output") -> Path:
@@ -79,11 +62,10 @@ def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path:
         if not visual or not visual.exists():
             raise RuntimeError(f"Missing real visual for scene {idx}; rendering aborted")
         alternate = visual.parent / f"scene_{idx:02}_pexels_alt.mp4"
-        text = scene.get("on_screen_text", "")
         if visual.suffix.lower() == ".mp4" and alternate.exists():
-            _render_dual_visual(visual, alternate, audio, duration, scene_path, text)
+            _render_dual_visual(visual, alternate, audio, duration, scene_path)
         else:
-            _render_single_visual(visual, audio, duration, scene_path, text)
+            _render_single_visual(visual, audio, duration, scene_path)
         scene_paths.append(scene_path)
     concat_file = out / "concat.txt"
     concat_file.write_text("\n".join(f"file '{p.resolve()}'" for p in scene_paths), encoding="utf-8")
@@ -91,10 +73,12 @@ def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path:
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-pix_fmt", "yuv420p", str(joined)])
     final_path = out / "behind_the_number_first_reel.mp4"
     sub = _escape_ass_path(subtitles_path.resolve())
+    # Arabic is rendered only through libass, which handles shaping/bidi reliably.
+    # Keep captions in the lower safe zone and avoid covering the subject.
     subtitle_filter = (
-        f"subtitles='{sub}':force_style='FontName=Noto Kufi Arabic,FontSize=18,"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H78000000,"
-        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginL=80,MarginR=80,MarginV=245'"
+        f"subtitles='{sub}':force_style='FontName=Noto Sans Arabic,FontSize=16,"
+        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H66000000,"
+        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginL=95,MarginR=95,MarginV=300'"
     )
     _run(["ffmpeg", "-y", "-i", str(joined), "-vf", subtitle_filter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(final_path)])
     streams = _stream_durations(final_path)
