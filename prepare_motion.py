@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import subprocess
 from pathlib import Path
 
@@ -8,9 +9,10 @@ import edge_tts
 from src.story import saudi_ai_datacenter_story
 
 FPS = 30
-SCENE_FRAMES = [150, 150, 150, 150, 150, 150, 150, 150]
 VOICE = "ar-SA-HamedNeural"
-RATE = "+12%"
+RATE = "+18%"
+MIN_SCENE_SECONDS = 3.8
+TAIL_PAD_SECONDS = 0.45
 
 
 def duration(path: Path) -> float:
@@ -31,18 +33,22 @@ def main() -> None:
     audio_dir = public / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
 
-    timeline = []
-    cursor = 0
-    for idx, (scene, frames) in enumerate(zip(story["scenes"], SCENE_FRAMES), start=1):
+    # Narration is the timing authority. Never force speech into a fixed visual slot.
+    measured = []
+    for idx, scene in enumerate(story["scenes"], start=1):
         path = audio_dir / f"scene_{idx:02}.mp3"
         asyncio.run(synth(scene["narration"], path))
         actual = duration(path)
+        scene_seconds = max(MIN_SCENE_SECONDS, actual + TAIL_PAD_SECONDS)
+        frames = int(math.ceil(scene_seconds * FPS))
+        measured.append((idx, scene, path, actual, frames))
+
+    timeline = []
+    cursor = 0
+    for idx, scene, path, actual, frames in measured:
         allowed = frames / FPS
-        # Never permit Remotion Sequence timing to clip narration.
-        if actual > allowed - 0.10:
-            raise RuntimeError(
-                f"AUDIO_TOO_LONG scene={idx} audio={actual:.2f}s slot={allowed:.2f}s; shorten narration or extend timeline"
-            )
+        if actual > allowed - 0.20:
+            raise RuntimeError(f"AUDIO_TIMING_INTERNAL_ERROR scene={idx} audio={actual:.2f}s slot={allowed:.2f}s")
         timeline.append({
             "index": idx,
             "from": cursor,
@@ -56,7 +62,7 @@ def main() -> None:
     payload = {
         "fps": FPS,
         "durationInFrames": cursor,
-        "durationSeconds": cursor / FPS,
+        "durationSeconds": round(cursor / FPS, 3),
         "title": story["title"],
         "caption": story["caption"],
         "timeline": timeline,
