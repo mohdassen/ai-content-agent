@@ -13,6 +13,7 @@ on:
     paths:
       - 'motion/**'
       - 'prepare_motion.py'
+      - 'apply_brand.py'
       - 'qa_motion.py'
       - 'send_motion_preview.py'
       - 'src/story.py'
@@ -53,6 +54,9 @@ jobs:
       - name: Prepare synchronized narration
         run: python prepare_motion.py
 
+      - name: Apply approved channel identity
+        run: python apply_brand.py
+
       - name: Install Remotion dependencies
         working-directory: motion
         run: npm install
@@ -78,4 +82,5 @@ jobs:
           path: |
             motion/out/behind-the-number-motion.mp4
             motion/public/story.json
+            motion/public/brand-logo.svg
           retention-days: 14
