@@ -4,6 +4,15 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-approval.yml'
+      - 'poll_telegram.py'
+      - 'publish_latest.py'
+      - 'src/telegram_decision.py'
+      - 'src/platforms.py'
+      - 'src/publishing.py'
 
 permissions:
   contents: write
