@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import json
 import subprocess
+from src.motion import build_motion_ass
 
 
 def _run(cmd: List[str]) -> None:
@@ -53,10 +54,11 @@ def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path:
     scenes_dir = out / "scene_video"
     scenes_dir.mkdir(parents=True, exist_ok=True)
     scene_paths: List[Path] = []
+    scene_durations: List[float] = []
     visual_files = visual_files or [None for _ in story.get("scenes", [])]
     for idx, (scene, audio) in enumerate(zip(story["scenes"], audio_files), start=1):
-        audio_duration = _duration(audio)
-        duration = audio_duration + 0.18
+        duration = _duration(audio) + 0.18
+        scene_durations.append(duration)
         scene_path = scenes_dir / f"scene_{idx:02}.mp4"
         visual = visual_files[idx - 1] if idx - 1 < len(visual_files) else None
         if not visual or not visual.exists():
@@ -71,16 +73,18 @@ def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path:
     concat_file.write_text("\n".join(f"file '{p.resolve()}'" for p in scene_paths), encoding="utf-8")
     joined = out / "joined.mp4"
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-pix_fmt", "yuv420p", str(joined)])
+
+    motion_path = build_motion_ass(story, scene_durations, output_dir)
     final_path = out / "behind_the_number_first_reel.mp4"
     sub = _escape_ass_path(subtitles_path.resolve())
-    # Arabic is rendered only through libass, which handles shaping/bidi reliably.
-    # Keep captions in the lower safe zone and avoid covering the subject.
-    subtitle_filter = (
+    motion = _escape_ass_path(motion_path.resolve())
+    caption = (
         f"subtitles='{sub}':force_style='FontName=Noto Sans Arabic,FontSize=16,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H66000000,"
         "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginL=95,MarginR=95,MarginV=300'"
     )
-    _run(["ffmpeg", "-y", "-i", str(joined), "-vf", subtitle_filter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(final_path)])
+    vf = caption + f",subtitles='{motion}'"
+    _run(["ffmpeg", "-y", "-i", str(joined), "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(final_path)])
     streams = _stream_durations(final_path)
     vdur, adur = streams.get("video", 0.0), streams.get("audio", 0.0)
     if not vdur or not adur or abs(vdur - adur) > 0.75:
