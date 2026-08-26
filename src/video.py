@@ -36,11 +36,13 @@ def _base_vf() -> str:
 
 def _overlay_filter(text: str, duration: float) -> str:
     safe = _escape_drawtext(text)
-    # Big first-beat text gives every scene a visual reason to keep watching.
+    # Noto Kufi Arabic contains Arabic glyphs as well as Latin/digits, avoiding tofu squares.
+    # Place the headline in the upper safe zone; subtitles live near the bottom.
     return (
-        f"drawtext=text='{safe}':font='Noto Sans Arabic':fontsize=72:fontcolor=white:"
-        "borderw=4:bordercolor=black@0.75:x=(w-text_w)/2:y=h*0.19:"
-        f"enable='between(t,0,{min(duration, 2.4):.2f})',format=yuv420p"
+        f"drawtext=text='{safe}':font='Noto Kufi Arabic':fontsize=62:fontcolor=white:"
+        "borderw=3:bordercolor=black@0.70:box=1:boxcolor=black@0.30:boxborderw=20:"
+        "x=(w-text_w)/2:y=h*0.13:"
+        f"enable='between(t,0,{min(duration, 2.2):.2f})',format=yuv420p"
     )
 
 
@@ -56,7 +58,6 @@ def _render_single_visual(visual: Path, audio: Path, duration: float, scene_path
 
 
 def _render_dual_visual(primary: Path, alternate: Path, audio: Path, duration: float, scene_path: Path, text: str) -> None:
-    # Faster V2 cut: switch around 2.2s rather than simply splitting long scenes in half.
     first = min(2.2, max(1.2, duration * 0.45))
     second = max(0.8, duration - first)
     base = _base_vf()
@@ -90,7 +91,11 @@ def compose_vertical_video(story: Dict, audio_files: List[Path], subtitles_path:
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-pix_fmt", "yuv420p", str(joined)])
     final_path = out / "behind_the_number_first_reel.mp4"
     sub = _escape_ass_path(subtitles_path.resolve())
-    subtitle_filter = f"subtitles='{sub}':force_style='FontName=Noto Sans Arabic,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H55000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=150'"
+    subtitle_filter = (
+        f"subtitles='{sub}':force_style='FontName=Noto Kufi Arabic,FontSize=18,"
+        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H78000000,"
+        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginL=80,MarginR=80,MarginV=245'"
+    )
     _run(["ffmpeg", "-y", "-i", str(joined), "-vf", subtitle_filter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(final_path)])
     streams = _stream_durations(final_path)
     vdur, adur = streams.get("video", 0.0), streams.get("audio", 0.0)
