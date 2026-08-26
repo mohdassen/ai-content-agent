@@ -8,6 +8,7 @@ from typing import Dict, List
 import requests
 
 from src.publishing import assert_publish_allowed
+from src.youtube_upload import upload_resumable
 
 
 class PlatformConfigurationError(RuntimeError):
@@ -48,13 +49,17 @@ def publish_youtube(video: Path, story: Dict, dry_run: bool = True) -> Dict:
             "containsSyntheticMedia": meta["ai_disclosure"],
         }
 
-    token = os.getenv("YOUTUBE_ACCESS_TOKEN")
-    if not token:
-        raise PlatformConfigurationError("YOUTUBE_ACCESS_TOKEN is missing")
+    if os.getenv("YOUTUBE_LIVE_UPLOAD", "false").lower() != "true":
+        raise PlatformConfigurationError(
+            "YouTube uploader is configured but locked. Set YOUTUBE_LIVE_UPLOAD=true explicitly."
+        )
 
-    # The production implementation uses YouTube's resumable videos.insert flow.
-    # We intentionally stop here until OAuth credentials are configured securely.
-    raise PlatformConfigurationError("YouTube live upload is not enabled until OAuth setup is complete")
+    # Private is intentionally hard-coded for the first production phase.
+    # Google restricts uploads from unverified API projects to private anyway,
+    # and we do not want an accidental public post during onboarding.
+    result = upload_resumable(video, story, privacy_status="private")
+    result["containsSyntheticMedia"] = meta["ai_disclosure"]
+    return result
 
 
 def publish_instagram(video: Path, story: Dict, dry_run: bool = True) -> Dict:
