@@ -14,10 +14,29 @@ end_logo = "<img src={staticFile('brand-logo.svg')} style={{width:250,height:250
 if end_marker in s:
     s = s.replace(end_marker, end_logo)
 
-# Remotion staticFile() paths are relative to the public directory. A leading
-# "public/" makes the renderer request /public/audio/... and causes a 404.
-s = s.replace("staticFile('public/audio/master.mp3')", "staticFile('audio/master.mp3')")
-s = s.replace('staticFile("public/audio/master.mp3")', 'staticFile("audio/master.mp3")')
+# prepare_motion.py always generates motion/public/audio/master_narration.mp3.
+# Remotion staticFile() paths are relative to motion/public, so normalize every
+# legacy master-audio reference before rendering.
+for old_audio in (
+    "staticFile('public/audio/master.mp3')",
+    'staticFile("public/audio/master.mp3")',
+    "staticFile('/public/audio/master.mp3')",
+    'staticFile("/public/audio/master.mp3")',
+    "staticFile('audio/master.mp3')",
+    'staticFile("audio/master.mp3")',
+    "staticFile('/audio/master.mp3')",
+    'staticFile("/audio/master.mp3")',
+):
+    s = s.replace(old_audio, "staticFile('audio/master_narration.mp3')")
+
+# Catch direct URL strings as well as staticFile() references.
+s = s.replace("'/public/audio/master.mp3'", "'/audio/master_narration.mp3'")
+s = s.replace('"/public/audio/master.mp3"', '"/audio/master_narration.mp3"')
+s = s.replace("'/audio/master.mp3'", "'/audio/master_narration.mp3'")
+s = s.replace('"/audio/master.mp3"', '"/audio/master_narration.mp3"')
+
+if 'master.mp3' in s or '/public/audio/' in s:
+    raise SystemExit('Legacy audio path still present after patch')
 
 p.write_text(s, encoding='utf-8')
-print('Approved brand logo applied; Remotion static asset paths verified')
+print('Approved brand logo applied; Remotion audio/static asset paths verified')
