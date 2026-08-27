@@ -3,6 +3,7 @@ name: Hybrid Live Acceptance
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'motion/src/hybridLiveAcceptance.tsx'
       - 'motion/src/root.tsx'
@@ -21,37 +22,45 @@ jobs:
       - name: Install dependencies
         working-directory: motion
         run: npm install
+      - name: Install media QA tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Download approved live presenter source
         run: |
           mkdir -p motion/public
           curl --fail --location --retry 3 --output motion/public/presenter-source.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/v8b7993cf1e0f430db3d8dccf28ba8955/b42e077ad7b84a94a0b142d3073bdf4d.mp4?Expires=1788402527&Signature=nqUkOf-j2aDvuUPbfHsltgHXrTV4vwQaorBFIWTKjAaa4E6vxHs9-lYdIRGCLDLFSYTZs7dKF4gLQsQ3Do1PYmIWAgFAVAWYH6LJP01ZBcmie59RcJNFseFq-STzdgGMwngQ-dQFsyCoPoVCIARHegRjQnKhMccgm2TBQ7gQU69-ZESeNlEWFM12SUteSfkxklraJUd58S-QY8sSxu72xpajAEIy9wgywD9lPSXVAqYbbdmlBPQKbLdMYIiXJ4iE42E5FzS2ZTP0xi1c2gLfo6PfyHh8fts7ysA35~QPVP9RofDxDLhslBozVrAeqLRbV5A9acAaoH-31uFmiQoNsQ__&Key-Pair-Id=K38HBHX5LX3X2H'
-          test -s motion/public/presenter-source.mp4
-      - name: Verify hybrid design contract
+          test $(stat -c%s motion/public/presenter-source.mp4) -gt 100000
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 motion/public/presenter-source.mp4
+      - name: Enforce new-only design contract
         run: |
+          test ! -e motion/src/video.tsx
+          test ! -e motion/src/hybridAcceptance.tsx
           grep -q 'OffthreadVideo' motion/src/hybridLiveAcceptance.tsx
-          grep -q 'قدرة مراكز البيانات' motion/src/hybridLiveAcceptance.tsx
+          grep -q 'DataWall' motion/src/hybridLiveAcceptance.tsx
           grep -q '467' motion/src/hybridLiveAcceptance.tsx
-          ! grep -q '#52e39c\|#030806' motion/src/hybridLiveAcceptance.tsx
-      - name: Render live hybrid acceptance
+          ! grep -q 'Caption\|PhotoPanel\|APPROVED_PRESENTER_HERO\|#52e39c\|#030806' motion/src/hybridLiveAcceptance.tsx
+      - name: Render presenter-led acceptance
         working-directory: motion
         run: npm run render:hybrid-live
-      - name: Verify output
+      - name: Extract visual QA frames
         run: |
-          test -s motion/out/hybrid-live-acceptance.mp4
-          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 motion/out/hybrid-live-acceptance.mp4
+          mkdir -p motion/out/qa
+          ffmpeg -y -ss 2 -i motion/out/hybrid-live-acceptance.mp4 -frames:v 1 motion/out/qa/frame-02.jpg
+          ffmpeg -y -ss 5 -i motion/out/hybrid-live-acceptance.mp4 -frames:v 1 motion/out/qa/frame-05.jpg
+          ffmpeg -y -ss 8 -i motion/out/hybrid-live-acceptance.mp4 -frames:v 1 motion/out/qa/frame-08.jpg
+          test -s motion/out/qa/frame-05.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: hybrid-live-acceptance
-          path: motion/out/hybrid-live-acceptance.mp4
+          name: hybrid-live-acceptance-with-qa
+          path: |
+            motion/out/hybrid-live-acceptance.mp4
+            motion/out/qa/*.jpg
           retention-days: 7
-      - name: Send acceptance clip to Telegram
+      - name: Send only new acceptance clip to Telegram
         if: success()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            curl --fail --silent --show-error -F chat_id="$TELEGRAM_CHAT_ID" -F video=@motion/out/hybrid-live-acceptance.mp4 -F caption='Hybrid Live Acceptance — الشخصية الحية + Chart 68→467' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
-          else
-            echo 'Telegram secrets unavailable; artifact remains downloadable.'
+            curl --fail --silent --show-error -F chat_id="$TELEGRAM_CHAT_ID" -F video=@motion/out/hybrid-live-acceptance.mp4 -F caption='NEW ENGINE — Live presenter + interactive 68→467 MW data wall' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
           fi
