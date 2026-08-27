@@ -1,0 +1,48 @@
+name: Hybrid Acceptance Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'hybrid/**'
+      - 'motion/src/hybridAcceptance.tsx'
+      - 'motion/src/root.tsx'
+      - 'motion/package.json'
+      - 'motion/public/avatars/**'
+      - '.github/workflows/hybrid-acceptance.yml'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: motion/package.json
+      - name: Install dependencies
+        working-directory: motion
+        run: npm install
+      - name: Verify hybrid source
+        run: |
+          grep -q 'HybridAcceptance' motion/src/hybridAcceptance.tsx
+          grep -q '467' motion/src/hybridAcceptance.tsx
+          grep -q '68' motion/src/hybridAcceptance.tsx
+          if grep -q '#52e39c\|#030806' motion/src/hybridAcceptance.tsx; then
+            echo 'Legacy green detected'; exit 1
+          fi
+      - name: Render acceptance scene
+        working-directory: motion
+        run: npm run render:hybrid
+      - name: Verify output
+        run: |
+          test -s motion/out/hybrid-acceptance.mp4
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 motion/out/hybrid-acceptance.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hybrid-acceptance-preview
+          path: motion/out/hybrid-acceptance.mp4
+          retention-days: 14
