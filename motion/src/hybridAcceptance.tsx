@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 
 const C={navy:'#071426',navy2:'#0B2036',cyan:'#38D9FF',gold:'#E9B949',white:'#F4F8FC',muted:'#A8B8C9',glass:'rgba(11,32,54,.62)'};
 
@@ -11,7 +11,7 @@ const Presenter:React.FC=()=>{
   const scale=1.02+Math.sin(f/42)*.006;
   return <div style={{position:'absolute',left:18,bottom:0,width:455,height:1710,overflow:'hidden'}}>
     <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 52% 35%,rgba(56,217,255,.17),transparent 58%)'}}/>
-    <Img src={staticFile('avatars/official_presenter_photoreal.jpg')} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'44% 50%',transform:`translateY(${drift}px) scale(${scale})`,filter:'contrast(1.04) saturate(.96)'}}/>
+    <Img src={'/avatars/official_presenter_heygen.jpg'} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'44% 50%',transform:`translateY(${drift}px) scale(${scale})`,filter:'contrast(1.04) saturate(.96)'}}/>
     <div style={{position:'absolute',left:0,right:0,bottom:0,height:340,background:'linear-gradient(transparent,#071426 92%)'}}/>
   </div>;
 };
