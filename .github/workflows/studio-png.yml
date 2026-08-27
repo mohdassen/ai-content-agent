@@ -1,0 +1,74 @@
+name: Studio PNG Alpha Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/studio-png.yml'
+      - 'motion/src/studioAcceptance.tsx'
+      - 'motion/src/root.tsx'
+      - 'motion/package.json'
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: motion
+        run: npm install
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Download transparent HeyGen presenter
+        run: |
+          mkdir -p motion/public/presenter-alpha
+          curl --fail --location --retry 3 --output /tmp/presenter.webm 'https://resource2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/c38deae1f9764a448074ed527ff63349.webm'
+          test $(stat -c%s /tmp/presenter.webm) -gt 100000
+      - name: Decode real alpha to PNG frames
+        run: |
+          ffmpeg -y -i /tmp/presenter.webm -vf "fps=30,format=rgba" motion/public/presenter-alpha/frame-%04d.png
+          COUNT=$(find motion/public/presenter-alpha -name 'frame-*.png' | wc -l)
+          echo "alpha frames=$COUNT"
+          test "$COUNT" -ge 180
+      - name: Verify studio source
+        run: |
+          grep -q 'presenter-alpha/frame-' motion/src/studioAcceptance.tsx
+          grep -q 'right:-10' motion/src/studioAcceptance.tsx
+          grep -q 'left:54' motion/src/studioAcceptance.tsx
+          ! grep -q 'OffthreadVideo\|colorkey' motion/src/studioAcceptance.tsx
+      - name: Render studio
+        working-directory: motion
+        run: npm run render:studio
+      - name: Extract QA frames
+        run: |
+          mkdir -p motion/out/qa
+          ffmpeg -y -ss 2 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/frame-02.jpg
+          ffmpeg -y -ss 4 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/frame-04.jpg
+          ffmpeg -y -ss 6 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/frame-06.jpg
+          test -s motion/out/qa/frame-04.jpg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-png-alpha-preview
+          path: |
+            motion/out/studio-acceptance.mp4
+            motion/out/qa/*.jpg
+          retention-days: 7
+      - name: Send preview to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl --fail --silent --show-error \
+              -F chat_id="$TELEGRAM_CHAT_ID" \
+              -F video=@motion/out/studio-acceptance.mp4 \
+              -F caption='Studio PNG Alpha Preview — presenter right / infographic left' \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
+          else
+            echo 'Telegram secrets unavailable; artifact remains available in Actions.'
+          fi
