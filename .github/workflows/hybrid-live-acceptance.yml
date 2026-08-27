@@ -30,15 +30,21 @@ jobs:
           curl --fail --location --retry 3 --output motion/public/presenter-transparent.webm 'https://resource2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/c38deae1f9764a448074ed527ff63349.webm'
           test $(stat -c%s motion/public/presenter-transparent.webm) -gt 100000
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,pix_fmt,width,height,duration -of default=nw=1 motion/public/presenter-transparent.webm | tee /tmp/presenter-alpha.txt
+      - name: Decode presenter alpha to RGBA PNG sequence
+        run: |
+          mkdir -p motion/public/presenter-alpha
+          ffmpeg -y -i motion/public/presenter-transparent.webm -vf "fps=30,format=rgba" motion/public/presenter-alpha/frame-%04d.png
+          test -s motion/public/presenter-alpha/frame-0001.png
+          test $(find motion/public/presenter-alpha -name 'frame-*.png' | wc -l) -ge 180
       - name: Verify studio design contract
         run: |
-          grep -q 'presenter-transparent.webm' motion/src/studioAcceptance.tsx
-          grep -q 'right:-42' motion/src/studioAcceptance.tsx
+          grep -q 'presenter-alpha/frame-' motion/src/studioAcceptance.tsx
+          grep -q 'const Presenter' motion/src/studioAcceptance.tsx
           grep -q 'left:54' motion/src/studioAcceptance.tsx
           grep -q 'DataWall' motion/src/studioAcceptance.tsx
           grep -q 'LowerThird' motion/src/studioAcceptance.tsx
           grep -q '467' motion/src/studioAcceptance.tsx
-          ! grep -q 'colorkey\|presenter-cutout.webm\|Pointer\|NO LEGACY TEMPLATE' motion/src/studioAcceptance.tsx
+          ! grep -q 'OffthreadVideo\|colorkey\|presenter-cutout.webm\|Pointer\|NO LEGACY TEMPLATE' motion/src/studioAcceptance.tsx
       - name: Render virtual studio acceptance
         working-directory: motion
         run: npm run render:studio
@@ -51,10 +57,10 @@ jobs:
           test -s motion/out/qa/studio-right-04.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: virtual-studio-right-presenter-qa
+          name: virtual-studio-alpha-png-qa
           path: |
             motion/out/studio-acceptance.mp4
             motion/out/qa/*.jpg
           retention-days: 7
       - name: Hold Telegram delivery pending visual acceptance
-        run: echo 'Telegram delivery intentionally disabled until right-side transparent presenter QA is accepted.'
+        run: echo 'Telegram delivery intentionally disabled until PNG-alpha QA is visually accepted.'
