@@ -1,0 +1,57 @@
+name: Hybrid Live Acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'motion/src/hybridLiveAcceptance.tsx'
+      - 'motion/src/root.tsx'
+      - 'motion/package.json'
+      - '.github/workflows/hybrid-live-acceptance.yml'
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: motion
+        run: npm install
+      - name: Download approved live presenter source
+        run: |
+          mkdir -p motion/public
+          curl --fail --location --retry 3 --output motion/public/presenter-source.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/v8b7993cf1e0f430db3d8dccf28ba8955/b42e077ad7b84a94a0b142d3073bdf4d.mp4?Expires=1788402527&Signature=nqUkOf-j2aDvuUPbfHsltgHXrTV4vwQaorBFIWTKjAaa4E6vxHs9-lYdIRGCLDLFSYTZs7dKF4gLQsQ3Do1PYmIWAgFAVAWYH6LJP01ZBcmie59RcJNFseFq-STzdgGMwngQ-dQFsyCoPoVCIARHegRjQnKhMccgm2TBQ7gQU69-ZESeNlEWFM12SUteSfkxklraJUd58S-QY8sSxu72xpajAEIy9wgywD9lPSXVAqYbbdmlBPQKbLdMYIiXJ4iE42E5FzS2ZTP0xi1c2gLfo6PfyHh8fts7ysA35~QPVP9RofDxDLhslBozVrAeqLRbV5A9acAaoH-31uFmiQoNsQ__&Key-Pair-Id=K38HBHX5LX3X2H'
+          test -s motion/public/presenter-source.mp4
+      - name: Verify hybrid design contract
+        run: |
+          grep -q 'OffthreadVideo' motion/src/hybridLiveAcceptance.tsx
+          grep -q 'قدرة مراكز البيانات' motion/src/hybridLiveAcceptance.tsx
+          grep -q '467' motion/src/hybridLiveAcceptance.tsx
+          ! grep -q '#52e39c\|#030806' motion/src/hybridLiveAcceptance.tsx
+      - name: Render live hybrid acceptance
+        working-directory: motion
+        run: npm run render:hybrid-live
+      - name: Verify output
+        run: |
+          test -s motion/out/hybrid-live-acceptance.mp4
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 motion/out/hybrid-live-acceptance.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hybrid-live-acceptance
+          path: motion/out/hybrid-live-acceptance.mp4
+          retention-days: 7
+      - name: Send acceptance clip to Telegram
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl --fail --silent --show-error -F chat_id="$TELEGRAM_CHAT_ID" -F video=@motion/out/hybrid-live-acceptance.mp4 -F caption='Hybrid Live Acceptance — الشخصية الحية + Chart 68→467' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
+          else
+            echo 'Telegram secrets unavailable; artifact remains downloadable.'
+          fi
