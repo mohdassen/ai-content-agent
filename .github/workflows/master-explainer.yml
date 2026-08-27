@@ -1,0 +1,63 @@
+name: Master Explainer Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'motion/src/masterExplainer.tsx'
+      - 'motion/src/root.tsx'
+      - 'motion/package.json'
+      - '.github/workflows/master-explainer.yml'
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: motion
+        run: npm install
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Download clean presenter master
+        run: |
+          mkdir -p motion/public motion/out/qa
+          curl --fail --location --retry 3 --output motion/public/presenter-master.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/v02a695cd9e334df59bfd650f5ab6391a/f3128de1ecff423c947616cef3b2a4b4.mp4?Expires=1788458295&Signature=SIx1zzrkoCljhgh9woVApYIeZQzDX1bHqTcva1NZJs6C9wcuQx7msplJBGSFowM3jz~pOpN7E~u37N4GwBZWVnrLW27gkCo-715ObKvS0awFGgYVkBAwonTSHycyXvXJeCxGMUMnRIl1SwVBNFpvO7maNQu6XcbcnIgW41XyJLNCmNcz7zYNV-yu5EvEPuUcc6frFqu6wy1UsG4CMX91DkvaFwJkC5IutxIzpjgQ2C-O3ibO1k~wP0OpYNZmFnK9F05TLz7PVXf3wt~ijzgPNe4nb3Z~2P0NdHYgyZPV-n9uq09FOLrrSdHnuJKdMcy2bfvnLxSl~4RvTB7Sa-6zcA__&Key-Pair-Id=K38HBHX5LX3X2H'
+          test $(stat -c%s motion/public/presenter-master.mp4) -gt 100000
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1 motion/public/presenter-master.mp4 | tee /tmp/source-audio.txt
+          grep -q 'codec_name=' /tmp/source-audio.txt
+      - name: Render seamless explainer
+        working-directory: motion
+        run: npm run render:master
+      - name: Audio QA
+        run: |
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,duration -of default=nw=1 motion/out/master-explainer.mp4 | tee /tmp/final-audio.txt
+          grep -q 'codec_name=' /tmp/final-audio.txt
+      - name: Visual QA frames
+        run: |
+          ffmpeg -y -ss 4 -i motion/out/master-explainer.mp4 -frames:v 1 motion/out/qa/master-04.jpg
+          ffmpeg -y -ss 9 -i motion/out/master-explainer.mp4 -frames:v 1 motion/out/qa/master-09.jpg
+          ffmpeg -y -ss 14 -i motion/out/master-explainer.mp4 -frames:v 1 motion/out/qa/master-14.jpg
+          ffmpeg -y -ss 21 -i motion/out/master-explainer.mp4 -frames:v 1 motion/out/qa/master-21.jpg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seamless-master-explainer
+          path: |
+            motion/out/master-explainer.mp4
+            motion/out/qa/*.jpg
+          retention-days: 7
+      - name: Send preview to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl --fail --silent --show-error \
+            -F chat_id="$TELEGRAM_CHAT_ID" \
+            -F video=@motion/out/master-explainer.mp4 \
+            -F caption='MASTER EXPLAINER — seamless studio + intact audio + timed data story' \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
