@@ -1,11 +1,10 @@
 {
   "name": "behind-the-number-motion",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "studio": "remotion studio src/index.ts --public-dir=public",
-    "render": "remotion render src/index.ts BehindTheNumber out/behind-the-number-motion.mp4 --codec=h264 --crf=18 --public-dir=public",
-    "render:hybrid": "remotion render src/index.ts HybridAcceptance out/hybrid-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
+    "render": "remotion render src/index.ts HybridLiveAcceptance out/hybrid-live-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
     "render:hybrid-live": "remotion render src/index.ts HybridLiveAcceptance out/hybrid-live-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public"
   },
   "dependencies": {
