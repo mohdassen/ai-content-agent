@@ -1,0 +1,11 @@
+{
+  "title": "خلف الرقم — 68 إلى 467 MW",
+  "scenes": [
+    {"id":"capacity","label":"قدرة مراكز البيانات","visual":"growth_chart","data":{"from":68,"to":467,"unit":"MW"},"presenter":"left","screen":"right","gesture":"point_from_to"},
+    {"id":"servers","label":"آلاف الخوادم","visual":"server_dashboard","presenter":"right","screen":"left","gesture":"open_palm"},
+    {"id":"factory","label":"مصانع الذكاء الاصطناعي","visual":"pipeline","nodes":["DATA","COMPUTE","AI"],"presenter":"left","screen":"right","gesture":"trace_pipeline"},
+    {"id":"investment","label":"16+ مليار ريال","visual":"investment_chart","presenter":"right","screen":"left","gesture":"emphasize"},
+    {"id":"infrastructure","label":"بنية الذكاء الاصطناعي","visual":"saudi_network_map","presenter":"left","screen":"right","gesture":"point_map"},
+    {"id":"close","label":"خلف الرقم","visual":"logo_close","presenter":"center","gesture":"neutral"}
+  ]
+}
