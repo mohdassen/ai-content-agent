@@ -38,9 +38,10 @@ jobs:
       - name: Verify studio source
         run: |
           grep -q 'presenter-alpha/frame-' motion/src/studioAcceptance.tsx
-          grep -q 'right:8' motion/src/studioAcceptance.tsx
-          grep -q 'left:54' motion/src/studioAcceptance.tsx
+          grep -q 'right:-12' motion/src/studioAcceptance.tsx
+          grep -q 'left:42' motion/src/studioAcceptance.tsx
           grep -q 'Math.min(147' motion/src/studioAcceptance.tsx
+          ! grep -q 'LowerThird' motion/src/studioAcceptance.tsx
       - name: Render studio
         working-directory: motion
         run: npm run render:studio
@@ -67,6 +68,6 @@ jobs:
             curl --fail --silent --show-error \
               -F chat_id="$TELEGRAM_CHAT_ID" \
               -F video=@motion/out/studio-acceptance.mp4 \
-              -F caption='GREEN KEY TEST — presenter right / infographic left / no black box' \
+              -F caption='STUDIO REBALANCE — presenter right / infographic left / blended edges' \
               "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
           fi
