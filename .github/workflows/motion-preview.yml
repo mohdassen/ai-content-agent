@@ -54,8 +54,17 @@ jobs:
       - name: Prepare synchronized narration
         run: python prepare_motion.py
 
-      - name: Apply approved channel identity
-        run: python apply_brand.py
+      - name: Verify approved visual pipeline
+        run: |
+          python apply_brand.py
+          grep -q 'NEW_VISUAL_PIPELINE_V3' motion/src/video.tsx
+          grep -q 'APPROVED_PRESENTER_HERO' motion/src/video.tsx
+          grep -q "audio/master_narration.mp3" motion/src/video.tsx
+          if grep -q '#030806\|#52e39c\|رقم واحد يشرح تحوّلًا ضخمًا\|const Atmosphere=' motion/src/video.tsx; then
+            echo 'ERROR: legacy motion template detected; blocking render and Telegram delivery'
+            exit 1
+          fi
+          echo 'NEW_VISUAL_PIPELINE_V3_OK'
 
       - name: Install Remotion dependencies
         working-directory: motion
