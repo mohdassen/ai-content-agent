@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "format": {"width": 1080, "height": 1920, "fps": 30},
+  "avatar": {
+    "engine": "local",
+    "fallback": "heygen",
+    "local_engine": "LivePortrait",
+    "presenter_frame_width_pct": 40
+  },
+  "graphics": {
+    "engine": "remotion",
+    "theme": "broadcast-tech",
+    "palette": {"navy": "#071426", "cyan": "#38D9FF", "gold": "#E9B949", "white": "#F4F8FC"},
+    "no_paragraph_text": true,
+    "interactive_screens": true
+  },
+  "qa": {
+    "require_presenter": true,
+    "require_chart_for_numeric_claims": true,
+    "reject_empty_panels": true,
+    "reject_legacy_green": true
+  }
+}
