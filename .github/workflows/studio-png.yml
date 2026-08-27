@@ -1,4 +1,4 @@
-name: Studio PNG Alpha Preview
+name: Studio Green Key Preview
 
 on:
   workflow_dispatch:
@@ -24,41 +24,41 @@ jobs:
         run: npm install
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Download transparent HeyGen presenter
+      - name: Download HeyGen green-screen presenter
         run: |
           mkdir -p motion/public/presenter-alpha
-          curl --fail --location --retry 3 --output /tmp/presenter.webm 'https://resource2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/c38deae1f9764a448074ed527ff63349.webm'
-          test $(stat -c%s /tmp/presenter.webm) -gt 100000
-      - name: Decode real alpha to PNG frames
+          curl --fail --location --retry 3 --output /tmp/presenter-green.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/388ea2ed56ed48e9b69f11cb8d1e5a62.mp4?Expires=1788452441&Signature=XEamR-HbYPv3xCANOgvWko0Z9PLGd9yEYFAavY3-FuxSe2aoxYjDnVt8~OMeGjcFqAortiWkWuCgSl8Gerf0K09EB-ikjARFbsd6tby7piZ58PPmgzEzot1LAsIIQW~6coYPvVtuIQw2HGjb1F6eulCJBmLgF1pYc0D4RX35mlyNozCAwLAHo18QoR0pYRWXZrxWXn3H31EaSkTuoG218SpOK9cUYp3YaydB358nv6rE5xhQYov45ib23N77XG44howwcWc8TjogCh0W6zpta0afajHps5wlpPGhz-fcN3fta5OfeoLbSlTTJH4tEAFTFfcWnzMHMjTSBK0CehHZXQ__&Key-Pair-Id=K38HBHX5LX3X2H'
+          test $(stat -c%s /tmp/presenter-green.mp4) -gt 100000
+      - name: Chroma-key green to RGBA PNG frames
         run: |
-          ffmpeg -y -i /tmp/presenter.webm -vf "fps=30,format=rgba" motion/public/presenter-alpha/frame-%04d.png
+          ffmpeg -y -i /tmp/presenter-green.mp4 -vf "fps=30,colorkey=0x00FF00:0.26:0.10,format=rgba" motion/public/presenter-alpha/frame-%04d.png
           COUNT=$(find motion/public/presenter-alpha -name 'frame-*.png' | wc -l)
-          echo "alpha frames=$COUNT"
-          test "$COUNT" -ge 180
+          echo "green-key frames=$COUNT"
+          test "$COUNT" -ge 140
       - name: Verify studio source
         run: |
           grep -q 'presenter-alpha/frame-' motion/src/studioAcceptance.tsx
-          grep -q 'right:-10' motion/src/studioAcceptance.tsx
+          grep -q 'right:8' motion/src/studioAcceptance.tsx
           grep -q 'left:54' motion/src/studioAcceptance.tsx
-          ! grep -q 'OffthreadVideo\|colorkey' motion/src/studioAcceptance.tsx
+          grep -q 'Math.min(147' motion/src/studioAcceptance.tsx
       - name: Render studio
         working-directory: motion
         run: npm run render:studio
       - name: Extract QA frames
         run: |
           mkdir -p motion/out/qa
-          ffmpeg -y -ss 2 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/frame-02.jpg
-          ffmpeg -y -ss 4 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/frame-04.jpg
-          ffmpeg -y -ss 6 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/frame-06.jpg
-          test -s motion/out/qa/frame-04.jpg
+          ffmpeg -y -ss 1 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/green-01.jpg
+          ffmpeg -y -ss 3 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/green-03.jpg
+          ffmpeg -y -ss 4.5 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/green-045.jpg
+          test -s motion/out/qa/green-03.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: studio-png-alpha-preview
+          name: studio-green-key-preview
           path: |
             motion/out/studio-acceptance.mp4
             motion/out/qa/*.jpg
           retention-days: 7
-      - name: Send preview to Telegram
+      - name: Send green-key preview to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -67,8 +67,6 @@ jobs:
             curl --fail --silent --show-error \
               -F chat_id="$TELEGRAM_CHAT_ID" \
               -F video=@motion/out/studio-acceptance.mp4 \
-              -F caption='Studio PNG Alpha Preview — presenter right / infographic left' \
+              -F caption='GREEN KEY TEST — presenter right / infographic left / no black box' \
               "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
-          else
-            echo 'Telegram secrets unavailable; artifact remains available in Actions.'
           fi
