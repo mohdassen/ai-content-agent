@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, OffthreadVideo, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 
 const C={bg:'#020712',cyan:'#35D7FF',gold:'#F2C14E',white:'#F7FBFF',muted:'#9CB2C8'};
 const clamp={extrapolateLeft:'clamp' as const,extrapolateRight:'clamp' as const};
@@ -13,12 +13,13 @@ const DataWall:React.FC=()=>{const f=useCurrentFrame();const {fps}=useVideoConfi
  <div style={{position:'absolute',left:44,bottom:96,textAlign:'center'}}><b style={{fontSize:54,color:C.cyan}}>68</b><div style={{fontSize:15,color:C.muted}}>MW</div></div><div style={{position:'absolute',right:34,bottom:82,textAlign:'center'}}><b style={{fontSize:76,color:C.gold}}>{v}</b><div style={{fontSize:15,color:C.muted}}>MW</div></div><div style={{position:'absolute',left:170,right:170,bottom:28,fontSize:22,fontWeight:900,color:C.white,textAlign:'center'}}>6.9×</div>
  </div>};
 
+const Presenter=()=>{const f=useCurrentFrame();const idx=Math.min(198,Math.max(1,f+1));const file=`presenter-alpha/frame-${String(idx).padStart(4,'0')}.png`;return <div style={{position:'absolute',right:-10,top:250,width:520,height:1330,overflow:'visible'}}><Img src={staticFile(file)} style={{position:'absolute',width:720,height:1280,right:-92,top:0,objectFit:'contain',filter:'drop-shadow(-18px 18px 34px rgba(0,0,0,.35))'}}/></div>};
+
 const LowerThird=()=> <div style={{position:'absolute',left:62,right:62,bottom:72,height:175,borderRadius:28,border:'1px solid rgba(242,193,78,.34)',background:'linear-gradient(90deg,rgba(5,18,34,.94),rgba(5,18,34,.80))',boxShadow:'0 20px 55px rgba(0,0,0,.35)',padding:'27px 36px',direction:'rtl',textAlign:'right'}}><div style={{fontSize:33,fontWeight:950,color:C.white}}>من <span style={{color:C.cyan}}>68</span> إلى <span style={{color:C.gold}}>467</span> ميغاواط</div><div style={{fontSize:19,lineHeight:1.55,color:C.muted,marginTop:10}}>نمو يقارب سبعة أضعاف في قدرة مراكز البيانات السعودية.</div></div>;
 
 export const StudioAcceptance:React.FC=()=>{const f=useCurrentFrame();const intro=interpolate(f,[0,16],[0,1],clamp);return <AbsoluteFill style={{background:C.bg,overflow:'hidden',fontFamily:'Arial,sans-serif'}}><Grid/>
  <div style={{position:'absolute',top:62,left:58,right:58,display:'flex',justifyContent:'space-between',alignItems:'center',opacity:intro}}><span style={{fontSize:12,letterSpacing:2.4,color:'rgba(247,251,255,.56)'}}>BEHIND THE NUMBER</span><span style={{fontSize:30,fontWeight:950,color:C.gold,direction:'rtl'}}>خلف الرقم</span></div>
- <DataWall/>
- <div style={{position:'absolute',right:-42,top:245,width:590,height:1370,overflow:'visible'}}><OffthreadVideo src={staticFile('presenter-transparent.webm')} style={{position:'absolute',width:760,height:1350,right:-88,top:0,objectFit:'contain'}}/></div>
+ <DataWall/><Presenter/>
  <div style={{position:'absolute',left:558,top:355,width:2,height:690,background:'linear-gradient(to bottom,transparent,rgba(53,215,255,.26),transparent)'}}/>
  <LowerThird/>
  </AbsoluteFill>};
