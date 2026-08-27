@@ -34,6 +34,13 @@ jobs:
       - name: Render seamless explainer
         working-directory: motion
         run: npm run render:master
+      - name: Master narration audio
+        run: |
+          ffmpeg -y -i motion/out/master-explainer.mp4 \
+            -map 0:v:0 -map 0:a:0 -c:v copy \
+            -af "highpass=f=70,lowpass=f=15500,acompressor=threshold=-18dB:ratio=2.2:attack=18:release=180:makeup=1.5,loudnorm=I=-16:LRA=7:TP=-1.5" \
+            -c:a aac -b:a 192k motion/out/master-explainer-polished.mp4
+          mv motion/out/master-explainer-polished.mp4 motion/out/master-explainer.mp4
       - name: Audio QA
         run: |
           ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,duration -of default=nw=1 motion/out/master-explainer.mp4 | tee /tmp/final-audio.txt
@@ -51,13 +58,16 @@ jobs:
             motion/out/master-explainer.mp4
             motion/out/qa/*.jpg
           retention-days: 7
-      - name: Send preview to Telegram
+      - name: Send preview to Telegram and verify
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl --fail --silent --show-error \
+          response=$(curl --fail --silent --show-error \
             -F chat_id="$TELEGRAM_CHAT_ID" \
             -F video=@motion/out/master-explainer.mp4 \
-            -F caption='MASTER EXPLAINER — seamless studio + intact audio + timed data story' \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
+            -F caption='MASTER V1 POLISH — synchronized motion + audio mastered + branded outro' \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo")
+          echo "$response" > /tmp/telegram-response.json
+          grep -q '"ok":true' /tmp/telegram-response.json
+          grep -q '"message_id":' /tmp/telegram-response.json
