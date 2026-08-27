@@ -1,11 +1,12 @@
 {
   "name": "behind-the-number-motion",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "scripts": {
     "studio": "remotion studio src/index.ts --public-dir=public",
-    "render": "remotion render src/index.ts HybridLiveAcceptance out/hybrid-live-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
-    "render:hybrid-live": "remotion render src/index.ts HybridLiveAcceptance out/hybrid-live-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public"
+    "render": "remotion render src/index.ts StudioAcceptance out/studio-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
+    "render:hybrid-live": "remotion render src/index.ts HybridLiveAcceptance out/hybrid-live-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
+    "render:studio": "remotion render src/index.ts StudioAcceptance out/studio-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.0",
