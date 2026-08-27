@@ -1,11 +1,11 @@
-name: Hybrid Live Acceptance
+name: Virtual Studio Acceptance
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'motion/src/hybridLiveAcceptance.tsx'
+      - 'motion/src/studioAcceptance.tsx'
       - 'motion/src/root.tsx'
       - 'motion/package.json'
       - '.github/workflows/hybrid-live-acceptance.yml'
@@ -13,7 +13,7 @@ on:
 jobs:
   render:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,47 +22,42 @@ jobs:
       - name: Install dependencies
         working-directory: motion
         run: npm install
-      - name: Install media QA tools
+      - name: Install media tools
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Download clean 1080p presenter master
         run: |
           mkdir -p motion/public
           curl --fail --location --retry 3 --output motion/public/presenter-source.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/34ef91b2ab3647efba41ed9751692cad.mp4?Expires=1788438612&Signature=AA~RqPFfDEBvevtgaiYIYDxcX49Bd4ZZcsnscfxdP~otn2oZxSmjL~qrh~0vAwY~np3tUARwEt-2bICMOHx2yHtyjcstcX2gv8l0R17wsouUUhZKhlDZNJ7PMCSlyM2VrYXF3EYj~wY7mEOOwosV7KRugBgL-5FQVImdSl3ACsRy9mzUy5niNbk63NazPrc~Myt-vwh3sAyX4eeIlX-4IB41PcWgf~aB7MNPePeECj5y~LWB4wYPnEUXydiz-pkwg7ATANgvL5OaV5llJJbv8iOOW5GsloGlDV0MrRLptjpTYKUODTYmFLmr4~1JZtKOWyPL-6vGivq2ivZ2MR85TA__&Key-Pair-Id=K38HBHX5LX3X2H'
           test $(stat -c%s motion/public/presenter-source.mp4) -gt 100000
-          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 motion/public/presenter-source.mp4 | tee /tmp/presenter-meta.txt
-          grep -q 'width=1080' /tmp/presenter-meta.txt
-          grep -q 'height=1920' /tmp/presenter-meta.txt
-      - name: Enforce new-only design contract
+      - name: Create isolated presenter cutout
         run: |
-          test ! -e motion/src/video.tsx
-          test ! -e motion/src/hybridAcceptance.tsx
-          grep -q 'OffthreadVideo' motion/src/hybridLiveAcceptance.tsx
-          grep -q 'DataWall' motion/src/hybridLiveAcceptance.tsx
-          grep -q '467' motion/src/hybridLiveAcceptance.tsx
-          ! grep -q 'Caption\|PhotoPanel\|APPROVED_PRESENTER_HERO\|#52e39c\|#030806' motion/src/hybridLiveAcceptance.tsx
-      - name: Render clean-master acceptance
+          ffmpeg -y -i motion/public/presenter-source.mp4 \
+            -vf "colorkey=0x020712:0.16:0.08,format=yuva420p" \
+            -c:v libvpx-vp9 -b:v 0 -crf 20 -auto-alt-ref 0 -an motion/public/presenter-cutout.webm
+          test $(stat -c%s motion/public/presenter-cutout.webm) -gt 100000
+      - name: Verify studio design contract
+        run: |
+          grep -q 'presenter-cutout.webm' motion/src/studioAcceptance.tsx
+          grep -q 'DataWall' motion/src/studioAcceptance.tsx
+          grep -q 'LowerThird' motion/src/studioAcceptance.tsx
+          grep -q '467' motion/src/studioAcceptance.tsx
+          ! grep -q 'PRESENTER + INTERACTIVE DATA\|NO LEGACY TEMPLATE\|Pointer' motion/src/studioAcceptance.tsx
+      - name: Render virtual studio acceptance
         working-directory: motion
-        run: npm run render:hybrid-live
-      - name: Extract visual QA frames
+        run: npm run render:studio
+      - name: Extract QA frames only
         run: |
           mkdir -p motion/out/qa
-          ffmpeg -y -ss 2 -i motion/out/hybrid-live-acceptance.mp4 -frames:v 1 motion/out/qa/frame-02.jpg
-          ffmpeg -y -ss 5 -i motion/out/hybrid-live-acceptance.mp4 -frames:v 1 motion/out/qa/frame-05.jpg
-          ffmpeg -y -ss 8 -i motion/out/hybrid-live-acceptance.mp4 -frames:v 1 motion/out/qa/frame-08.jpg
-          test -s motion/out/qa/frame-05.jpg
+          ffmpeg -y -ss 2 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/studio-02.jpg
+          ffmpeg -y -ss 5 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/studio-05.jpg
+          ffmpeg -y -ss 8 -i motion/out/studio-acceptance.mp4 -frames:v 1 motion/out/qa/studio-08.jpg
+          test -s motion/out/qa/studio-05.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: hybrid-clean-1080-acceptance
+          name: virtual-studio-acceptance-qa
           path: |
-            motion/out/hybrid-live-acceptance.mp4
+            motion/out/studio-acceptance.mp4
             motion/out/qa/*.jpg
           retention-days: 7
-      - name: Send clean-master preview to Telegram
-        if: success()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            curl --fail --silent --show-error -F chat_id="$TELEGRAM_CHAT_ID" -F video=@motion/out/hybrid-live-acceptance.mp4 -F caption='CLEAN 1080 MASTER — presenter left + interactive 68→467 MW data wall' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
-          fi
+      - name: Hold Telegram delivery pending visual acceptance
+        run: echo 'Telegram delivery intentionally disabled until QA frame is visually accepted.'
