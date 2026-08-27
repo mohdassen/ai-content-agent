@@ -1,21 +1,16 @@
 from pathlib import Path
-p=Path('motion/src/video.tsx'); s=p.read_text(encoding='utf-8')
+p=Path('motion/src/video.tsx');s=p.read_text(encoding='utf-8')
+# Never synthesize the approved presenter from CSS primitives. The previous
+# placeholder looked like a toy avatar and did not match the approved concept.
+if 'const Presenter=' in s:
+ a=s.index('const Presenter='); b=s.find('const Brand=()=>',a)
+ if b!=-1:s=s[:a]+s[b:]
+s=s.replace("<Presenter side={f%240<120?'left':'right'}/>","")
+# Keep the documentary environment and channel identity until a real transparent
+# presenter asset matching the approved concept is available in public/character.
 old="const Brand=()=> <div style={{position:'absolute',top:62,right:62,fontFamily:font,color:C.accent,fontSize:24,fontWeight:900,direction:'rtl'}}>خلف الرقم <span style={{color:C.muted,fontSize:18}}>• BEHIND THE NUMBER</span></div>;"
 new="const Brand=()=> <div style={{position:'absolute',top:48,right:48,zIndex:50,filter:'drop-shadow(0 8px 18px rgba(0,0,0,.55))'}}><img src={staticFile('brand-logo.svg')} style={{width:126,height:126,objectFit:'contain'}} /></div>;"
 if old in s:s=s.replace(old,new)
-s=s.replace("const C={bg:'#030806',bg2:'#091812',panel:'#10241d',text:'#f7faf8',accent:'#52e39c',accent2:'#d8ffe9',muted:'#91aa9f',line:'#1c4435'};","const C={bg:'#05070b',bg2:'#0a1020',panel:'#111827',text:'#f8fafc',accent:'#48d7ff',accent2:'#f4d06f',muted:'#aab4c3',line:'#273248'};")
-start="const Atmosphere=()=>{const f=useCurrentFrame();";end="const Brand=()=>"
-if start in s and end in s:
- a=s.index(start);b=s.index(end,a);s=s[:a]+"""const Atmosphere=()=>{const f=useCurrentFrame();const x=Math.sin(f/31)*85,y=Math.cos(f/43)*55;return <><AbsoluteFill style={{background:`linear-gradient(${118+Math.sin(f/80)*24}deg,#03050a 0%,#091226 40%,#160d24 72%,#08090f 100%)`}}/><div style={{position:'absolute',left:-260+x,top:-180+y,width:880,height:880,borderRadius:'50%',background:'radial-gradient(circle,rgba(72,215,255,.24),rgba(0,0,0,0) 68%)',filter:'blur(18px)'}}/><div style={{position:'absolute',right:-300-x*.55,bottom:-190-y*.7,width:980,height:980,borderRadius:'50%',background:'radial-gradient(circle,rgba(191,122,255,.18),rgba(0,0,0,0) 66%)',filter:'blur(28px)'}}/></>};
-"""+s[b:]
-marker="const Brand=()=>"
-if "const Presenter=" not in s and marker in s:
- i=s.index(marker); presenter="""const Presenter=({side='left'}:{side?:'left'|'right'})=>{const f=useCurrentFrame();const bob=Math.sin(f/13)*5;const blink=f%97>91;const gesture=Math.sin(f/18)*8;return <div style={{position:'absolute',bottom:80,[side]:20,width:390,height:850,zIndex:18,transform:`translateY(${bob}px)`,filter:'drop-shadow(0 25px 30px rgba(0,0,0,.55))'}}><div style={{position:'absolute',left:105,top:42,width:180,height:220,borderRadius:'48% 48% 44% 44%',background:'linear-gradient(145deg,#d9a17d,#b97859)',border:'4px solid rgba(255,255,255,.08)'}}><div style={{position:'absolute',left:8,top:-28,width:164,height:82,borderRadius:'60% 60% 35% 35%',background:'#171319',transform:'rotate(-5deg)'}}/><div style={{position:'absolute',left:24,top:86,width:132,height:42,border:'8px solid #161b25',borderRadius:18}}/><i style={{position:'absolute',left:48,top:103,width:20,height:blink?2:9,borderRadius:9,background:'#201914'}}/><i style={{position:'absolute',right:48,top:103,width:20,height:blink?2:9,borderRadius:9,background:'#201914'}}/><div style={{position:'absolute',left:46,bottom:10,width:90,height:55,borderRadius:'10px 10px 45px 45px',borderBottom:'18px solid #2a1b1a'}}/></div><div style={{position:'absolute',left:55,top:245,width:280,height:470,borderRadius:'90px 90px 34px 34px',background:'linear-gradient(110deg,#0b1222,#17233c 55%,#09101e)',border:'2px solid rgba(100,180,255,.14)'}}><div style={{position:'absolute',left:70,top:18,width:140,height:310,background:'#080b11',clipPath:'polygon(30% 0,70% 0,100% 100%,0 100%)'}}/><div style={{position:'absolute',left:-48,top:95,width:92,height:300,borderRadius:45,background:'#121d31',transform:`rotate(${12+gesture*.3}deg)`,transformOrigin:'top center'}}/><div style={{position:'absolute',right:-55,top:90,width:92,height:310,borderRadius:45,background:'#121d31',transform:`rotate(${-12-gesture*.35}deg)`,transformOrigin:'top center'}}/></div><div style={{position:'absolute',left:95,top:690,width:82,height:170,borderRadius:30,background:'#111827'}}/><div style={{position:'absolute',right:95,top:690,width:82,height:170,borderRadius:30,background:'#111827'}}/></div>};
-""";s=s[:i]+presenter+s[i:]
-# Presenter appears as a supporting host, while scene content stays readable.
-s=s.replace("<Atmosphere/><DocumentaryLayer/><AbsoluteFill","<Atmosphere/><DocumentaryLayer/><Presenter side={f%240<120?'left':'right'}/><AbsoluteFill")
-s=s.replace("<Atmosphere/><Brand/>{children}</AbsoluteFill>","<Atmosphere/><Presenter side={f%240<120?'left':'right'}/><Brand/>{children}</AbsoluteFill>")
-for a,b in {'#123b2b':'#15254a','#17623f':'#176f92','#142c23':'#151c2c','#07110d':'#080b13','#315347':'#31435e'}.items():s=s.replace(a,b)
-for olda in ("staticFile('public/audio/master.mp3')","staticFile('/public/audio/master.mp3')","staticFile('audio/master.mp3')","staticFile('/audio/master.mp3')") :s=s.replace(olda,"staticFile('audio/master_narration.mp3')")
+for olda in ("staticFile('public/audio/master.mp3')","staticFile('/public/audio/master.mp3')","staticFile('audio/master.mp3')","staticFile('/audio/master.mp3')"):s=s.replace(olda,"staticFile('audio/master_narration.mp3')")
 if 'master.mp3' in s or '/public/audio/' in s:raise SystemExit('Legacy audio path still present')
-p.write_text(s,encoding='utf-8');print('Official animated presenter injected; narration path verified')
+p.write_text(s,encoding='utf-8');print('Toy presenter removed; approved-character-only policy enforced')
