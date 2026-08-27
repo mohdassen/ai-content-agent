@@ -6,7 +6,8 @@
     "studio": "remotion studio src/index.ts --public-dir=public",
     "render": "remotion render src/index.ts StudioAcceptance out/studio-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
     "render:hybrid-live": "remotion render src/index.ts HybridLiveAcceptance out/hybrid-live-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
-    "render:studio": "remotion render src/index.ts StudioAcceptance out/studio-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public"
+    "render:studio": "remotion render src/index.ts StudioAcceptance out/studio-acceptance.mp4 --codec=h264 --crf=18 --public-dir=public",
+    "render:master": "remotion render src/index.ts MasterExplainer out/master-explainer.mp4 --codec=h264 --crf=18 --public-dir=public"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.0",
@@ -17,7 +18,7 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
+    "@types/react-dom": "^18.3.1",
     "typescript": "^5.7.0"
   }
 }
