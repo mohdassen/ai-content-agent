@@ -24,12 +24,14 @@ jobs:
         run: npm install
       - name: Install media QA tools
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Download approved live presenter source
+      - name: Download clean 1080p presenter master
         run: |
           mkdir -p motion/public
-          curl --fail --location --retry 3 --output motion/public/presenter-source.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/v8b7993cf1e0f430db3d8dccf28ba8955/b42e077ad7b84a94a0b142d3073bdf4d.mp4?Expires=1788402527&Signature=nqUkOf-j2aDvuUPbfHsltgHXrTV4vwQaorBFIWTKjAaa4E6vxHs9-lYdIRGCLDLFSYTZs7dKF4gLQsQ3Do1PYmIWAgFAVAWYH6LJP01ZBcmie59RcJNFseFq-STzdgGMwngQ-dQFsyCoPoVCIARHegRjQnKhMccgm2TBQ7gQU69-ZESeNlEWFM12SUteSfkxklraJUd58S-QY8sSxu72xpajAEIy9wgywD9lPSXVAqYbbdmlBPQKbLdMYIiXJ4iE42E5FzS2ZTP0xi1c2gLfo6PfyHh8fts7ysA35~QPVP9RofDxDLhslBozVrAeqLRbV5A9acAaoH-31uFmiQoNsQ__&Key-Pair-Id=K38HBHX5LX3X2H'
+          curl --fail --location --retry 3 --output motion/public/presenter-source.mp4 'https://files2.heygen.ai/aws_pacific/avatar_tmp/15afa89079a5462cb016ee346d771ddf/34ef91b2ab3647efba41ed9751692cad.mp4?Expires=1788438612&Signature=AA~RqPFfDEBvevtgaiYIYDxcX49Bd4ZZcsnscfxdP~otn2oZxSmjL~qrh~0vAwY~np3tUARwEt-2bICMOHx2yHtyjcstcX2gv8l0R17wsouUUhZKhlDZNJ7PMCSlyM2VrYXF3EYj~wY7mEOOwosV7KRugBgL-5FQVImdSl3ACsRy9mzUy5niNbk63NazPrc~Myt-vwh3sAyX4eeIlX-4IB41PcWgf~aB7MNPePeECj5y~LWB4wYPnEUXydiz-pkwg7ATANgvL5OaV5llJJbv8iOOW5GsloGlDV0MrRLptjpTYKUODTYmFLmr4~1JZtKOWyPL-6vGivq2ivZ2MR85TA__&Key-Pair-Id=K38HBHX5LX3X2H'
           test $(stat -c%s motion/public/presenter-source.mp4) -gt 100000
-          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 motion/public/presenter-source.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 motion/public/presenter-source.mp4 | tee /tmp/presenter-meta.txt
+          grep -q 'width=1080' /tmp/presenter-meta.txt
+          grep -q 'height=1920' /tmp/presenter-meta.txt
       - name: Enforce new-only design contract
         run: |
           test ! -e motion/src/video.tsx
@@ -38,7 +40,7 @@ jobs:
           grep -q 'DataWall' motion/src/hybridLiveAcceptance.tsx
           grep -q '467' motion/src/hybridLiveAcceptance.tsx
           ! grep -q 'Caption\|PhotoPanel\|APPROVED_PRESENTER_HERO\|#52e39c\|#030806' motion/src/hybridLiveAcceptance.tsx
-      - name: Render presenter-led acceptance
+      - name: Render clean-master acceptance
         working-directory: motion
         run: npm run render:hybrid-live
       - name: Extract visual QA frames
@@ -50,17 +52,17 @@ jobs:
           test -s motion/out/qa/frame-05.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: hybrid-live-acceptance-with-qa
+          name: hybrid-clean-1080-acceptance
           path: |
             motion/out/hybrid-live-acceptance.mp4
             motion/out/qa/*.jpg
           retention-days: 7
-      - name: Send only new acceptance clip to Telegram
+      - name: Send clean-master preview to Telegram
         if: success()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            curl --fail --silent --show-error -F chat_id="$TELEGRAM_CHAT_ID" -F video=@motion/out/hybrid-live-acceptance.mp4 -F caption='NEW ENGINE — Live presenter + interactive 68→467 MW data wall' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
+            curl --fail --silent --show-error -F chat_id="$TELEGRAM_CHAT_ID" -F video=@motion/out/hybrid-live-acceptance.mp4 -F caption='CLEAN 1080 MASTER — presenter left + interactive 68→467 MW data wall' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo"
           fi
