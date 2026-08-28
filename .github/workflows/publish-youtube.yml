@@ -1,0 +1,64 @@
+name: Publish YouTube Short
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: Direct URL of final MP4
+        required: true
+        type: string
+      title:
+        description: YouTube title
+        required: true
+        type: string
+      description:
+        description: YouTube description
+        required: false
+        type: string
+      tags:
+        description: Comma-separated tags
+        required: false
+        default: "السعودية,الذكاء الاصطناعي,AI,تقنية,خلف الرقم,Shorts"
+        type: string
+      privacy:
+        description: Upload privacy
+        required: true
+        default: private
+        type: choice
+        options:
+          - private
+          - unlisted
+          - public
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install uploader dependencies
+        run: pip install google-api-python-client google-auth google-auth-httplib2
+      - name: Download final video
+        env:
+          VIDEO_URL: ${{ inputs.video_url }}
+        run: curl --fail --location --retry 3 "$VIDEO_URL" --output video.mp4
+      - name: Validate video
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          ffprobe -v error -show_entries stream=codec_type,width,height -show_entries format=duration -of json video.mp4
+          test -s video.mp4
+      - name: Upload to YouTube
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          VIDEO_FILE: video.mp4
+          YT_TITLE: ${{ inputs.title }}
+          YT_DESCRIPTION: ${{ inputs.description }}
+          YT_TAGS: ${{ inputs.tags }}
+          YT_PRIVACY: ${{ inputs.privacy }}
+        run: python scripts/youtube_upload.py
